@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Script</title>
+
+    <style>
+        body {
+            font-family: monospace;
+            margin: 20px;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0f071d, #1e143a);
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 36px;
+            color: #1e6cfc;
+            text-align: left;
+            margin-bottom: 20px;
+            margin-left: 20px;
+        }
+
+        h2 {
+            font-size: 24px;
+            color: #ffffff;
+            text-align: left;
+            margin-bottom: 10px;
+            margin-left: 20px;
+        }
+
+        table {
+            width: 90%;
+            border-collapse: collapse;
+            margin-left: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ffffff;
+            padding: 8px;
+            text-align: left;
+        }
+
+        p {
+            font-size: 18px;
+            color: #ffffff;
+            text-align: left;
+            margin-bottom: 20px;
+            margin-left: 20px;
+        }
+
+        button {
+            font-size: 18px;
+            padding: 10px 20px;
+            background-color: #1e6cfc;
+            color: #ffffff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #068ff8;
+        }
+
+        .card {
+            background-color: #2a2b6f;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        #unit-toggle {
+            display: flex;
+            gap: 10px;
+        }
+
+        #unit-toggle button {
+            background-color: #1e6cfc;
+            color: #ffffff;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+
+        #unit-toggle button.active {
+            background-color: #57b6fe;
+        }
+
+        .tab-container {
+            margin-top: 20px;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-button {
+            padding: 10px 20px;
+            background-color: #1e6cfc;
+            color: #ffffff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .tab-button.active {
+            background-color: #57b6fe;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+    </style>
+</head>
+<body>
+    <h1>Weather App</h1>
+
+    <div id="unit-toggle">
+        <button id="btn-fahrenheit" onclick="toggleUnits('fahrenheit')">Fahrenheit</button>
+        <button id="btn-celsius" onclick="toggleUnits('celsius')">Celsius</button>
+    </div>
+
+    <div class="tab-container">
+        <div class="tab-buttons">
+            <button class="tab-button active" onclick="showTab('get-weather')">Get Weather</button>
+            <button class="tab-button" onclick="showTab('saved-records')">Saved Records</button>
+        </div>
+
+        <div id="get-weather" class="tab-content active">
+            <div class="card">
+                <p>Lookup current weather for a given location (city, state, or country)</p>
+
+                <div>
+                    <label for="Location" style="color: #ffffff; font-size: 16px; margin-bottom: 6px; margin-left: 20px; display: block;">
+                        Location (city, zip code, or GPS coordinates)
+                    </label>
+                    <input type="text" id="location" placeholder="i.e. New York, 10001, 40.7128,-74.0060" style="width: 80%; padding: 8px; border-radius: 5px; border: 1px solid #ccc; margin-left: 20px;">
+                </div>
+
+                <input type="date" id="date-start" placeholder="YYYY-MM-DD" style="width: 80%; padding: 8px; border-radius: 5px; border: 1px solid #ccc; margin-left: 20px; margin-top: 10px;">
+                <input type="date" id="date-end" placeholder="YYYY-MM-DD" style="width: 80%; padding: 8px; border-radius: 5px; border: 1px solid #ccc; margin-left: 20px; margin-top: 10px;">
+
+                <button onclick="getWeather()">Get Weather</button>
+                <button onclick="getWeatherForecast()">Get Weather Forecast</button>
+            </div>
+
+            <div id="weather-card-container"></div>
+        </div>
+
+        <div id="saved-records" class="tab-content">
+            <div class="card">
+                <h2>Saved Weather Records</h2>
+                <p>Here you can view previously saved weather data.</p>
+                <div id="saved-records-list"></div>
+                <button onclick="loadSavedRecords()">Load Saved Records</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        
+        let currentUnit = 'celsius';
+
+        async function getWeather() {
+            const dateStart = document.getElementById('date-start').value;
+            const dateEnd = document.getElementById('date-end').value;
+
+            if (dateStart && dateEnd && dateStart > dateEnd) {
+                alert("Start date cannot be after end date.");
+                return;
+            }
+            else if ((dateStart && !dateEnd) || (!dateStart && dateEnd)) {
+                alert("Please provide both start and end dates.");
+                return;
+            }
+            else if (dateEnd && dateEnd > new Date().toISOString().split('T')[0]) {
+                alert("End date cannot be in the future.");
+                return;
+            }
+
+            const location = document.getElementById('location').value;
+
+            const response = await fetch(`/api/get-weather?location=${location}&start_date=${dateStart}&end_date=${dateEnd}`);
+            console.log(response.status, response.headers.get("content-type"));
+            const data = await response.json();
+            
+            const card = buildWeatherCard(data);
+            const container = document.getElementById('weather-card-container');
+            container.innerHTML = '';
+            container.appendChild(card);
+
+            saveWeatherRecord(data);
+        }
+
+        async function getWeatherForecast() {
+            const location = document.getElementById('location').value;
+            const response = await fetch(`/api/get-weather-forecast?location=${location}`);
+            console.log(response.status, response.headers.get("content-type"));
+            const data = await response.json();
+            
+            const card = buildWeatherCard(data);
+            const container = document.getElementById('weather-card-container');
+            container.innerHTML = '';
+            container.appendChild(card);
+
+            saveWeatherRecord(data);
+        }
+
+        async function exportPdf() {
+            const card = document.querySelector('#weather-card-container .card');
+
+            const canvas = await html2canvas(card, { scale: 2, backgroundColor: '#2a2b6f' });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jspdf.jsPDF({ unit: 'px', format: 'a4' });
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const imgWidth = pageWidth - 40;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            pdf.addImage(imgData, 'PNG', 20, 20, imgWidth, imgHeight);
+            pdf.save('weather.pdf');
+        }
+
+        function exportJson() {
+            const card = document.querySelector('#weather-card-container .card');
+
+            const location = card.querySelector('h2').textContent;
+            const rows = card.querySelectorAll('table tr');
+            const headers = Array.from(rows[0].querySelectorAll('th')).map(th => th.textContent.trim());
+            const data = Array.from(rows).slice(1).map(row => {
+                const cells = row.querySelectorAll('td');
+                const entry = {};
+                cells.forEach((cell, index) => {
+                    entry[headers[index]] = cell.textContent.trim();
+                });
+                return entry;
+            });
+
+            const jsonData = JSON.stringify({ location, data }, null, 2);
+            const blob = new Blob([jsonData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'weather.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function toggleUnits(unit) {
+            currentUnit = unit;
+            const fahrenheitBtn = document.getElementById('btn-fahrenheit');
+            const celsiusBtn = document.getElementById('btn-celsius');
+
+            if (unit === 'fahrenheit') {
+                fahrenheitBtn.classList.add('active');
+                celsiusBtn.classList.remove('active');
+            } else {
+                celsiusBtn.classList.add('active');
+                fahrenheitBtn.classList.remove('active');
+            }
+        }
+
+        function showTab(tabId) {
+            const tabs = document.querySelectorAll('.tab-content');
+            const buttons = document.querySelectorAll('.tab-button');
+
+            tabs.forEach(tab => tab.classList.remove('active'));
+            buttons.forEach(button => button.classList.remove('active'));
+
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function saveWeatherRecord(data) {
+            const records = JSON.parse(localStorage.getItem('weatherRecords') || '[]');
+            records.push({ ...data, savedAt: new Date().toISOString() });
+            localStorage.setItem('weatherRecords', JSON.stringify(records));
+        }
+
+        function loadSavedRecords() {
+            const records = JSON.parse(localStorage.getItem('weatherRecords') || '[]');
+            const list = document.getElementById('saved-records-list');
+            list.innerHTML = '';
+
+            if (records.length === 0) {
+                list.innerHTML = '<p>No saved records found.</p>';
+                return;
+            }
+
+            records.forEach((record, index) => {
+                const recordDiv = document.createElement('div');
+                recordDiv.className = 'card';
+                recordDiv.innerHTML = `
+                    <h3>${record.location} (Saved: ${new Date(record.savedAt).toLocaleString()})</h3>
+                    <table style="color: #ffffff; width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <th style="border: 1px solid #ccc; padding: 8px;">Date</th>
+                            <th style="border: 1px solid #ccc; padding: 8px;">Max Temp</th>
+                            <th style="border: 1px solid #ccc; padding: 8px;">Min Temp</th>
+                            <th style="border: 1px solid #ccc; padding: 8px;">Precipitation</th>
+                            <th style="border: 1px solid #ccc; padding: 8px;">Wind Speed</th>
+                        </tr>
+                        ${record.data.map(day => `
+                            <tr>
+                                <td style="border: 1px solid #ccc; padding: 8px;">${day.date}</td>
+                                <td style="border: 1px solid #ccc; padding: 8px;">${day.max_temperature}</td>
+                                <td style="border: 1px solid #ccc; padding: 8px;">${day.min_temperature}</td>
+                                <td style="border: 1px solid #ccc; padding: 8px;">${day.precipitation}</td>
+                                <td style="border: 1px solid #ccc; padding: 8px;">${day.windspeed}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                    <button onclick="deleteRecord(${index})" style="margin-top: 10px; background-color: #ff6384; color: #ffffff; border: none; padding: 5px 10px; border-radius: 3px;">Delete</button>
+                `;
+                list.appendChild(recordDiv);
+            });
+        }
+
+        function deleteRecord(index) {
+            const records = JSON.parse(localStorage.getItem('weatherRecords') || '[]');
+            records.splice(index, 1);
+            localStorage.setItem('weatherRecords', JSON.stringify(records));
+            loadSavedRecords();
+        }
+
+        function buildWeatherCard(weather) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            
+            let multiplier = 1;
+            let offset = 0;
+            if (currentUnit === 'fahrenheit') {
+                multiplier = 9/5;
+                offset = 32;
+            }
+
+            const tableRows = weather.data.map(day => `
+                <tr>
+                    <td style="border: 1px solid #ccc; padding: 8px;">${day.date}</td>
+                    <td style="border: 1px solid #ccc; padding: 8px;">${(day.max_temperature * multiplier + offset).toFixed(1)}</td>
+                    <td style="border: 1px solid #ccc; padding: 8px;">${(day.min_temperature * multiplier + offset).toFixed(1)}</td>
+                    <td style="border: 1px solid #ccc; padding: 8px;">${day.precipitation}</td>
+                    <td style="border: 1px solid #ccc; padding: 8px;">${day.windspeed}</td>
+                </tr>
+            `).join('');
+
+            card.innerHTML = `
+                <h2>${weather.location}</h2>
+
+                <table style="color: #ffffff; width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <th style="border: 1px solid #ccc; padding: 8px;">Date</th>
+                        <th style="border: 1px solid #ccc; padding: 8px;">Max Temp (°${currentUnit === 'fahrenheit' ? 'F' : 'C'})</th>
+                        <th style="border: 1px solid #ccc; padding: 8px;">Min Temp (°${currentUnit === 'fahrenheit' ? 'F' : 'C'})</th>
+                        <th style="border: 1px solid #ccc; padding: 8px;">Precipitation (mm)</th>
+                        <th style="border: 1px solid #ccc; padding: 8px;">Wind Speed (km/h)</th>
+                    </tr>
+                    ${tableRows}
+                </table>
+
+                <div style="margin-top: 20px;">
+                    <canvas id="weather-chart" style="max-width: 100%;"></canvas>
+                </div>
+
+                <div>
+                    <button type="button" onclick="exportPdf()" class="download-btn" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background-color: #1e6cfc; color: #ffffff; text-decoration: none; border-radius: 5px; border: none; cursor: pointer;">
+                        Export PDF
+                    </button>
+
+                    <button type="button" onclick="exportJson()" class="download-btn" style="display: inline-block; margin-top: 20px; margin-left: 10px; padding: 10px 20px; background-color: #1e6cfc; color: #ffffff; text-decoration: none; border-radius: 5px; border: none; cursor: pointer;">
+                        Export JSON
+                    </button>
+                </div>
+
+                <div>
+                    <a href="https://www.google.com/maps?q=${encodeURIComponent(weather.location)}" style="color: #57b6fe; font-size: 14px; margin-top: 10px; margin-left: 20px; display: inline-block;" target="_blank">
+                        Data provided by Google Maps
+                    </a>
+                    <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(weather.location)}+travel" style="color: #57b6fe; font-size: 14px; margin-top: 10px; margin-left: 20px; display: inline-block;" target="_blank">
+                        Travel videos for ${weather.location}
+                    </a>
+                </div>
+            `;
+
+            const dates = weather.data.map(d => d.date);
+            const maxTemps = weather.data.map(d => (d.max_temperature * multiplier + offset).toFixed(1));
+            const minTemps = weather.data.map(d => (d.min_temperature * multiplier + offset).toFixed(1));
+            const chartCanvas = card.querySelector('#weather-chart');
+
+            new Chart(chartCanvas, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [
+                        {
+                            label: `Max Temp (°${currentUnit === 'fahrenheit' ? 'F' : 'C'})`,
+                            data: maxTemps,
+                            borderColor: '#ff6384',
+                            fill: false,
+                            tension: 0.3
+                        },
+                        {
+                            label: `Min Temp (°${currentUnit === 'fahrenheit' ? 'F' : 'C'})`,
+                            data: minTemps,
+                            borderColor: '#36a2eb',
+                            fill: false,
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { display: true, title: { display: true, text: 'Date' } },
+                        y: { display: true, title: { display: true, text: `Temperature (°${currentUnit === 'fahrenheit' ? 'F' : 'C'})` } }
+                    }
+                }
+            });
+
+            return card;
+        }
+
+
+
+    </script>
+
+</body>
+</html>
